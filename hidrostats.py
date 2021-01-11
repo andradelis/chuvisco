@@ -204,7 +204,7 @@ class Vazao():
         return polinomio
 
 
-    def mannKendall(self, ref = "hamed rao"):
+    def mannKendall(self, ref = "hamed rao", **kwargs):
         """
         Retorna o teste de Mann-Kendall para a distribuição dos eventos na série histórica. TESTES
         """
@@ -225,7 +225,7 @@ class Vazao():
             resultado = mk.pre_whitening_modification_test(y)
 
         elif ref == 'seasonal':
-            resultado = mk.seasonal_test(y, period=6)
+            resultado = mk.seasonal_test(y, period=kwargs.get('mann_kendall_sazonal', 12))
 
         return resultado
 
@@ -314,7 +314,7 @@ class Vazao():
 
 
 
-    def analiseVazao(self, uhe, recorte = "", janela_movel = (10*6), freq = "MS", mann_kendall_ref = "hamed rao", recorte_temporal = "rainy season", **loess_):
+    def analiseVazao(self, uhe, recorte = "", janela_movel = (10*6), freq = "MS", mann_kendall_ref = "hamed rao", recorte_temporal = "rainy season", grau = 4, mann_kendall_sazonal = 12, **loess_):
         """
         Compilado de métodos da classe Vazao que facilita a visualização da tendência nas séries históricas de vazão.
 
@@ -338,10 +338,16 @@ class Vazao():
         recorte_temporal: str. Default: "rainy season"
             Argumento passado para a função de recorte temporal.
 
-        **loess
+        grau: int. Default: 4
+            Grau do polinômio de ajuste.
+
+        mann_kendall_sazonal: int. Default: 12
+            Período para o teste sazonal de Mann-Kendall.
+
+        **loess_
         """
 
-        def plot(vazao, loess, media, mediana, rippl, mann_kendall, recorte):
+        def plot(vazao, loess, media, mediana, rippl, mann_kendall, recorte, grau):
             """
             Plotagem fácil da análise de vazões.
 
@@ -365,6 +371,9 @@ class Vazao():
 
             recorte: str
                 Recorte temporal da série. Ex: Se a série foi recortada para o período úmido, pode ser específicado recorte = " de Outubro a Março".
+
+            grau: int
+                Grau do polinômio de ajuste.
             """
 
             fig, ax = plt.subplots(nrows=3, figsize = (24, 16))
@@ -379,13 +388,13 @@ class Vazao():
             self.plotSett(ax[1], dado = media[uhe], color = '#00AF91', linewidth = 2, alpha = 0.8)
             media_patch = mpatches.Patch(color='#00AF91', label = f"Média móvel ({janela_movel} meses)")
             self.plotSett(ax[1], dado = mediana[uhe], label = f"Mediana móvel ({janela_movel} meses)", color = "#3E4B4B", linewidth=1.1)
-            mediana_patch = mpatches.Patch(color='#3E4B4B', label = f"Média móvel ({janela_movel} meses)")
+            mediana_patch = mpatches.Patch(color='#3E4B4B', label = f"Mediana móvel ({janela_movel} meses)")
 
             ax[1].legend(fancybox=True, handles = [media_patch, mediana_patch], loc="upper left", fontsize = 14, borderpad=0.5)
 
             self.plotSett(ax[2], dado = rippl.vazao[uhe],  color = '#00AF91', linewidth = 2, alpha = 0.8)
             rippl_patch = mpatches.Patch(color='#00AF91', label = "Anomalia acumulada")
-            ax[2].plot(rippl.regPoli(3), color = "#3E4B4B", linestyle='--')
+            ax[2].plot(rippl.regPoli(grau), color = "#3E4B4B", linestyle='--')
             mmq_patch = mpatches.Patch(color='#3E4B4B', label = "M.M.Q")
 
             ax[2].legend(fancybox=True, handles = [rippl_patch, mmq_patch], loc="upper left",fontsize = 14)
@@ -396,8 +405,11 @@ class Vazao():
 
             ax[1].set_xticks(ax[2].get_xticks())
 
-            #trend, h, p, z, Tau, s, var_s, slope, intercept = mann_kendall
-            #ax[0].annotate(f"Tendência: {trend}\nh: {h}\np: {p}\nTau: {Tau}", horizontalalignment='right', xy=(2, 1), size = 16, xytext=(320, vazao.vazao[uhe].max().values.tolist() + vazao.vazao[uhe].max().values.tolist()*0.15))
+            trend, h, p, z, Tau, s, var_s, slope, intercept = mann_kendall
+            ax[0].annotate(f"Mann-Kendall ({mann_kendall_ref})\nTendência: {trend}\np: {round(p, 8)}\nZ: {round(z, 8)}\nTau: {round(Tau, 8)}\nScore: {s}\nSen: {round(slope, 8)}\nVariância S: {(var_s)}",
+                            horizontalalignment='right', xy=(0.99, 0.75), xycoords="axes fraction", size = 16, bbox=dict(boxstyle="round", alpha=0.25, facecolor = "white", edgecolor = "grey"))
+            print(trend, uhe)
+
             fig.tight_layout()
             plt.savefig(uhe + ".png")
 
@@ -406,10 +418,10 @@ class Vazao():
 
         vazao_media_verao = self.agruparMedia(freq = freq).recorteTemporal(series = recorte_temporal)
 
-        mk = vazao_media_verao.mannKendall(ref = mann_kendall_ref)
+        mk = vazao_media_verao.mannKendall(ref = mann_kendall_ref, mann_kendall_sazonal = mann_kendall_sazonal)
         loess = vazao_media_verao.loess(**loess_)
         media = vazao_media_verao.mediaMovel(janela = janela_movel)
         mediana = vazao_media_verao.medianaMovel(janela = janela_movel)
         rippl = self.agruparMedia(freq = freq).massaResidual(period=[vazao_media_verao.vazao["time"][0], vazao_media_verao.vazao["time"][-1]], basis = [vazao_media_verao.vazao["time"][0], '12-31-2010']).recorteTemporal(series = recorte_temporal)
 
-        plot(vazao = vazao_media_verao, loess = loess, media = media, mediana = mediana, rippl = rippl, mann_kendall = mk, recorte = recorte)
+        plot(vazao = vazao_media_verao, loess = loess, media = media, mediana = mediana, rippl = rippl, mann_kendall = mk, recorte = recorte, grau = grau)

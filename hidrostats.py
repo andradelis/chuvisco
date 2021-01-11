@@ -20,8 +20,8 @@ class Vazao():
         Classe de análise de vazões.
 
         Parâmetros:
-        caminho_ou_dataset: str ou xarray.Dataset
-            Diretório do arquivo .csv ou um objeto xarray.Dataset.
+        caminho_ou_dataset: str, xarray.Dataset ou xarray.DataArray.
+            Diretório do arquivo .csv ou um objeto xarray.Dataset. Caso seja passado um objeto da classe xarray.DataArray, o objeto será transformado em dataset.
 
         Kwargs:
         format: str
@@ -32,9 +32,13 @@ class Vazao():
             vazao = self.lerCSV(caminho = caminho_ou_dataset, **kwargs)
         elif isinstance(caminho_ou_dataset, xr.Dataset):
             vazao = caminho_ou_dataset
+        elif isinstance(caminho_ou_dataset, xr.DataArray):
+            vazao = caminho_ou_dataset.to_dataset()
 
         self.vazao = vazao
+        self.usina = str(vazao.to_array().isel(variable=0)['variable'].values)
 
+        self.dir_saida = os.path.join(os.getcwd(), "saída")
 
     def agruparMedia(self, freq="MS"):
         """
@@ -191,9 +195,9 @@ class Vazao():
         """
 
         # Obter o vetor de vazão natural
-        y = self.vazao[str(self.vazao.to_array().isel(variable=0)['variable'].values)]
+        y = self.vazao[self.usina]
         # Obter n valores entre 0 e 1, onde n é igual ao comprimento do vetor contendo os valores de vazão natural
-        x = np.linspace(0, 1, len(self.vazao[str(self.vazao.to_array().isel(variable=0)['variable'].values)]))
+        x = np.linspace(0, 1, len(self.vazao[self.usina]))
 
         # Obter os coeficientes para o ajuste de um polinômio p(x) = p_0*x^n + p_1*x^(n-1) + ... + p_n, onde n é o grau do polinômio.
         coefs = np.polyfit(x, y, grau_polinomio)
@@ -218,7 +222,7 @@ class Vazao():
         """
         vazao = self.vazao
 
-        y = vazao[str(vazao.to_array().isel(variable=0)['variable'].values)]
+        y = vazao[self.usina]
 
         if ref == "hamed rao":
             resultado = mk.hamed_rao_modification_test(y)
@@ -276,7 +280,7 @@ class Vazao():
         return loess_vazao
 
 
-    def plotSett(self, ax, dado, **kwargs):
+    def plot(self, ax, dado, **kwargs):
         """
         Configuração padrão do gráfico.
 
@@ -321,13 +325,9 @@ class Vazao():
             plt.setp(ax.get_ymajorticklabels(), fontsize = kwargs.get('fontsize', 15))
 
 
-    def analiseVazao(self, uhe, recorte = "", janela_movel = (10*6), freq = "MS", mann_kendall_ref = "hamed rao", recorte_temporal = "rainy season", grau = 4, mann_kendall_sazonal = 12, **loess_):
+    def analiseVazao(self, recorte = "", janela_movel = (10*6), freq = "MS", mann_kendall_ref = "hamed rao", recorte_temporal = "rainy season", grau = 4, mann_kendall_sazonal = 12, exportar = True, **loess_):
         """
         Compilado de métodos da classe Vazao que facilita a visualização da tendência nas séries históricas de vazão.
-
-        Parâmetros:
-        uhe: str
-            Nome da usina.
 
         Kwargs:
         recorte: str. Default: ""
@@ -351,10 +351,13 @@ class Vazao():
         mann_kendall_sazonal: int. Default: 12
             Período para o teste sazonal de Mann-Kendall.
 
+        exportar: bool. Default: True
+            Exporta a imagem para o diretório /saida/<nome da usina>/.
+
         **loess_
         """
 
-        def plot(vazao, loess, media, mediana, rippl, mann_kendall, recorte, grau):
+        def analisePlot(vazao, loess, media, mediana, rippl, mann_kendall, recorte, grau):
             """
             Plotagem fácil da análise de vazões.
 
@@ -386,30 +389,30 @@ class Vazao():
 
             fig, ax = plt.subplots(nrows=3, figsize = (24, 16))
 
-            self.plotSett(ax[0], dado = vazao.vazao[uhe], color = '#00AF91', linewidth = 2, alpha = 0.8)
+            self.plot(ax[0], dado = vazao.vazao[self.usina], color = '#00AF91', linewidth = 2, alpha = 0.8)
             vazao_patch = mpatches.Patch(color='#00AF91', label="Vazão natural (m³/s)")
-            self.plotSett(ax[0], dado = loess[uhe], color = "#3E4B4B")
+            self.plot(ax[0], dado = loess[self.usina], color = "#3E4B4B")
             loess_patch = mpatches.Patch(color='#3E4B4B', label = f"Regressão local ({loess_.get('type', 'trend')})")
 
             ax[0].legend(fancybox=True, handles = [vazao_patch, loess_patch], loc="upper left", fontsize = 14, borderpad=0.5)
 
-            self.plotSett(ax[1], dado = media[uhe], color = '#00AF91', linewidth = 2, alpha = 0.8)
+            self.plot(ax[1], dado = media[self.usina], color = '#00AF91', linewidth = 2, alpha = 0.8)
             media_patch = mpatches.Patch(color='#00AF91', label = f"Média móvel ({janela_movel} meses)")
-            self.plotSett(ax[1], dado = mediana[uhe], label = f"Mediana móvel ({janela_movel} meses)", color = "#3E4B4B", linewidth=1.1)
+            self.plot(ax[1], dado = mediana[self.usina], label = f"Mediana móvel ({janela_movel} meses)", color = "#3E4B4B", linewidth=1.1)
             mediana_patch = mpatches.Patch(color='#3E4B4B', label = f"Mediana móvel ({janela_movel} meses)")
 
             ax[1].legend(fancybox=True, handles = [media_patch, mediana_patch], loc="upper left", fontsize = 14, borderpad=0.5)
 
-            self.plotSett(ax[2], dado = rippl.vazao[uhe],  color = '#00AF91', linewidth = 2, alpha = 0.8)
+            self.plot(ax[2], dado = rippl.vazao[self.usina],  color = '#00AF91', linewidth = 2, alpha = 0.8)
             rippl_patch = mpatches.Patch(color='#00AF91', label = "Anomalia acumulada")
             ax[2].plot(rippl.regPoli(grau), color = "#3E4B4B", linestyle='--')
             mmq_patch = mpatches.Patch(color='#3E4B4B', label = "M.M.Q")
 
             ax[2].legend(fancybox=True, handles = [rippl_patch, mmq_patch], loc="upper left",fontsize = 14)
 
-            ax[0].set_title(f'Vazão natural afluente em {uhe}\nMédia mensal{recorte}\n\n', fontsize = 18)
-            ax[1].set_title(f'Média e mediana móvel para a vazão de {uhe} mensal{recorte}\n\n', fontsize = 18)
-            ax[2].set_title(f'\nDiagrama de Rippl a partir das anomalias de vazão natural afluente no reservatório de {uhe}\nMédia mensal{recorte} em relação à média de longo termo entre {pd.to_datetime(loess["time"][0].values).year} e 2010\n\n', fontsize = 18)
+            ax[0].set_title(f'Vazão natural afluente em {self.usina}\nMédia mensal{recorte}\n\n', fontsize = 18)
+            ax[1].set_title(f'Média e mediana móvel para a vazão de {self.usina} mensal{recorte}\n\n', fontsize = 18)
+            ax[2].set_title(f'\nDiagrama de Rippl a partir das anomalias de vazão natural afluente no reservatório de {self.usina}\nMédia mensal{recorte} em relação à média de longo termo entre {pd.to_datetime(loess["time"][0].values).year} e 2010\n\n', fontsize = 18)
 
             ax[1].set_xticks(ax[2].get_xticks())
 
@@ -418,7 +421,9 @@ class Vazao():
                             horizontalalignment='right', xy=(0.99, 0.75), xycoords="axes fraction", size = 16, bbox=dict(boxstyle="round", alpha=0.25, facecolor = "white", edgecolor = "grey"))
 
             fig.tight_layout()
-            plt.savefig(uhe + ".png")
+
+            if exportar:
+                self.exportarImagem()
 
             return fig, ax
 
@@ -431,4 +436,29 @@ class Vazao():
         mediana = vazao_media_verao.medianaMovel(janela = janela_movel)
         rippl = self.agruparMedia(freq = freq).massaResidual(period=[vazao_media_verao.vazao["time"][0], vazao_media_verao.vazao["time"][-1]], basis = [vazao_media_verao.vazao["time"][0], '12-31-2010']).recorteTemporal(series = recorte_temporal)
 
-        plot(vazao = vazao_media_verao, loess = loess, media = media, mediana = mediana, rippl = rippl, mann_kendall = mk, recorte = recorte, grau = grau)
+        analisePlot(vazao = vazao_media_verao, loess = loess, media = media, mediana = mediana, rippl = rippl, mann_kendall = mk, recorte = recorte, grau = grau)
+
+    def exportarImagem(self, **kwargs):
+        """
+        Exportar o arquivo de imagem.
+
+        Kwargs:
+        arquivo: str. Default: xarray.DataArray.name
+            Nome do arquivo a ser exportado.
+
+        transparent: bool. Default: False
+            Transparência da imagem.
+        """
+        try:
+            os.mkdir(self.dir_saida)
+        except FileExistsError:
+            pass
+
+        diretorio = os.path.join(self.dir_saida, self.usina)
+
+        try:
+            os.mkdir(diretorio)
+        except FileExistsError:
+            pass
+
+        plt.savefig(f"{os.path.join(diretorio, kwargs.get('arquivo', self.usina))}.png", transparent = kwargs.get('transparent', False))

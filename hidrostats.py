@@ -50,7 +50,7 @@ class Vazao():
         """
 
         if isinstance(caminho_ou_dataset, str):
-            vazao = self.lerCSV(caminho = caminho_ou_dataset, **kwargs)
+            vazao = self.csv2ds(caminho = caminho_ou_dataset, **kwargs)
         elif isinstance(caminho_ou_dataset, xr.Dataset):
             vazao = caminho_ou_dataset
         elif isinstance(caminho_ou_dataset, xr.DataArray):

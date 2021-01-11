@@ -206,7 +206,15 @@ class Vazao():
 
     def mannKendall(self, ref = "hamed rao", **kwargs):
         """
-        Retorna o teste de Mann-Kendall para a distribuição dos eventos na série histórica. TESTES
+        Retorna o teste de Mann-Kendall para a distribuição dos eventos na série histórica.
+
+        Parâmetros:
+        ref: str. Default: "hamed rao"
+            Referência para o teste de Mann-Kendall. ['hamed rao', 'yue wang', 'trend-free prewhitening', 'prewhitening', 'seasonal']
+
+        Kwargs:
+        mann_kendall_sazonal: int. Default: 12
+            Período para o teste sazonal de Mann-Kendall.
         """
         vazao = self.vazao
 
@@ -313,7 +321,6 @@ class Vazao():
             plt.setp(ax.get_ymajorticklabels(), fontsize = kwargs.get('fontsize', 15))
 
 
-
     def analiseVazao(self, uhe, recorte = "", janela_movel = (10*6), freq = "MS", mann_kendall_ref = "hamed rao", recorte_temporal = "rainy season", grau = 4, mann_kendall_sazonal = 12, **loess_):
         """
         Compilado de métodos da classe Vazao que facilita a visualização da tendência nas séries históricas de vazão.
@@ -367,7 +374,8 @@ class Vazao():
             rippl: hidrostats.Vazao
                 Objeto Vazao contendo os valores da curva de massa residual.
 
-            mann_kendall:
+            mann_kendall: list
+                Saída do teste de Mann-Kendall contendo a tendência, a hipótese, o valor p, z, Tau, s, a variância S, a declividade de Sen e o intercept. (Ver pymannkendall.)
 
             recorte: str
                 Recorte temporal da série. Ex: Se a série foi recortada para o período úmido, pode ser específicado recorte = " de Outubro a Março".
@@ -380,8 +388,8 @@ class Vazao():
 
             self.plotSett(ax[0], dado = vazao.vazao[uhe], color = '#00AF91', linewidth = 2, alpha = 0.8)
             vazao_patch = mpatches.Patch(color='#00AF91', label="Vazão natural (m³/s)")
-            self.plotSett(ax[0], dado = loess[uhe], color = "#637070")
-            loess_patch = mpatches.Patch(color='#637070', label = f"Regressão local ({loess_.get('type', 'trend')})")
+            self.plotSett(ax[0], dado = loess[uhe], color = "#3E4B4B")
+            loess_patch = mpatches.Patch(color='#3E4B4B', label = f"Regressão local ({loess_.get('type', 'trend')})")
 
             ax[0].legend(fancybox=True, handles = [vazao_patch, loess_patch], loc="upper left", fontsize = 14, borderpad=0.5)
 
@@ -408,7 +416,6 @@ class Vazao():
             trend, h, p, z, Tau, s, var_s, slope, intercept = mann_kendall
             ax[0].annotate(f"Mann-Kendall ({mann_kendall_ref})\nTendência: {trend}\np: {round(p, 8)}\nZ: {round(z, 8)}\nTau: {round(Tau, 8)}\nScore: {s}\nSen: {round(slope, 8)}\nVariância S: {(var_s)}",
                             horizontalalignment='right', xy=(0.99, 0.75), xycoords="axes fraction", size = 16, bbox=dict(boxstyle="round", alpha=0.25, facecolor = "white", edgecolor = "grey"))
-            print(trend, uhe)
 
             fig.tight_layout()
             plt.savefig(uhe + ".png")

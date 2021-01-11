@@ -13,6 +13,27 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
 
+def csv2ds(caminho, **kwargs):
+    """
+    Lê um arquivo .csv e retorna como um objeto xarray.Dataset.
+
+    Parâmetros:
+    caminho: str
+        Diretório do arquivo .csv.
+
+    Kwargs:
+    format: str
+        Formato de data no índice da série. Default: ['%d/%m/%Y'].
+    """
+
+    csv = pd.read_csv(caminho)
+    csv.index = pd.to_datetime(csv.index, format=kwargs.get('format', '%d/%m/%Y'))
+
+    ds = xr.Dataset.from_dataframe(csv)
+
+    return ds
+
+
 class Vazao():
 
     def __init__(self, caminho_ou_dataset, **kwargs):
@@ -52,28 +73,6 @@ class Vazao():
         vazao = self.vazao
 
         return Vazao(vazao.resample(time = freq).mean())
-
-
-    def lerCSV(self, caminho, **kwargs):
-        """
-        Lê um arquivo .csv.
-
-        Parâmetros:
-        caminho: str
-            Diretório do arquivo .csv.
-
-        Kwargs:
-        format: str
-            Formato de data no índice da série. Default: ['%d/%m/%Y'].
-        """
-
-        self.caminho = caminho
-        vazao = pd.read_csv(self.caminho)
-        vazao.index = pd.to_datetime(vazao.index, format=kwargs.get('format', '%d/%m/%Y'))
-
-        vazao_ds = xr.Dataset.from_dataframe(vazao)
-
-        return vazao_ds
 
 
     def indiceCategorico(self, array):

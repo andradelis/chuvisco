@@ -2,16 +2,12 @@ import climsy
 import os
 import matplotlib.pyplot as plt
 import pandas as pd
-import re
 import pymannkendall as mk
 import xarray as xr
 import datetime as dt
 import numpy as np
 import matplotlib.patches as mpatches
-import statsmodels.api as sm
-from datetime import datetime
 from dateutil.relativedelta import relativedelta
-from dtw import *
 
 
 
@@ -69,7 +65,7 @@ class Vazao():
         """
         Retorna a série temporal após passado o resample de acordo com a frequência escolhida. A sintaxe de frequẽncia segue o padrão do Pandas.
 
-        Parâmetros:
+        Kwargs:
         freq: str. Default: "MS"
             Frequência de agrupamento.
         """
@@ -87,6 +83,7 @@ class Vazao():
         array: xr.DataArray
             Vetor temporal.
 
+        Kwargs:
         step: dateutil.relativedelta
             Diferença esperada entre as datas.
         """
@@ -102,6 +99,7 @@ class Vazao():
             b: datetime64[ns]
                 Segunda data.
 
+            Kwargs:
             step: dateutil.relativedelta
                 Diferença esperada entre as datas.
             """
@@ -218,14 +216,13 @@ class Vazao():
         """
         Retorna o teste de Mann-Kendall para a distribuição dos eventos na série histórica.
 
-        Parâmetros:
+        Kwargs:
         ref: str. Default: "hamed rao"
             Referência para o teste de Mann-Kendall. ['hamed rao', 'yue wang', 'trend-free prewhitening', 'prewhitening', 'seasonal']
 
         retorna_df: bool. Default: False
             Caso verdadeiro, retorna um pd.DataFrame com os atributos do teste de Mann-Kendall.
 
-        Kwargs:
         mann_kendall_sazonal: int. Default: 12
             Período para o teste sazonal de Mann-Kendall.
         """
@@ -271,7 +268,7 @@ class Vazao():
         """
         Retorna uma curva calculada a partir da regressão local da série temporal.
 
-        **Kwargs:
+        Kwargs:
         type: 'trend', 'seasonality', 'observed', 'residual'. Default: 'trend'
             Tipos de análise.
 
@@ -311,6 +308,8 @@ class Vazao():
         Configuração padrão do gráfico.
 
         Parâmetros:
+        ax: matplotlib.axes._subplots.AxesSubplot
+
         dado: xarray.DataArray
             Array da variável
 

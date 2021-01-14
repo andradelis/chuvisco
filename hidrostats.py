@@ -333,15 +333,18 @@ class Vazao():
             Transparência da linha do gráfico.
         """
 
+        # removendo as spines indesejadas
         right = ax.spines["right"]
         right.set_visible(False)
         up = ax.spines["top"]
         up.set_visible(False)
 
+        # checando o tipo do índice para que seja alterado para string caso não seja contínuo, garantindo que o dado não tenha lacunas
         dado["time"] = self.indiceCategorico(dado["time"])
         ax.set_ylabel(kwargs.get('set_ylabel', 'Vazão natural\n(m³/s)'), fontsize = kwargs.get('fontsize', 15))
         ax.plot(dado['time'], dado, label = kwargs.get('label', ''), color = kwargs.get('color', '#00AF91'), linewidth=kwargs.get('linewidth', 1), alpha=kwargs.get('alpha', 1))
 
+        # caso a variável independente "time" não seja do tipo data, formata o eixo de data
         if dado["time"].dtype == 'object':
             start, end = ax.get_xlim()
             ax.xaxis.set_ticks(np.linspace(start, end, kwargs.get('passo', 17)))
@@ -349,7 +352,7 @@ class Vazao():
             plt.setp(ax.get_ymajorticklabels(), fontsize = kwargs.get('fontsize', 15))
 
 
-    def analiseVazao(self, recorte = "", janela_movel = (10*6), freq = "MS", mann_kendall_ref = "hamed rao", recorte_temporal = "rainy season", grau = 4, mann_kendall_sazonal = 12, exportar = True, **loess_):
+    def analiseVazao(self, recorte = "", janela_movel = (10*6), freq = "MS", mann_kendall_ref = "hamed rao", recorte_temporal = "rainy season", grau = 4, mann_kendall_sazonal = 12, exportar = True, type = 'trend', seasonality = 7, periodo_loess = 6, robust = False, seasonal_deg = 1, trend_deg = 1, low_pass_deg = 1, **kwargs):
         """
         Compilado de métodos da classe Vazao que facilita a visualização da tendência nas séries históricas de vazão.
 
@@ -376,9 +379,31 @@ class Vazao():
             Período para o teste sazonal de Mann-Kendall.
 
         exportar: bool. Default: True
-            Exporta a imagem para o diretório /saida/<nome da usina>/.
+            Exporta a imagem para o diretório de saída.
 
-        **loess_
+        type: 'trend', 'seasonality', 'observed', 'residual'. Default: 'trend'
+            Tipos de análise STL.
+
+        seasonality: int > 3
+            Fator de suavização da curva. Ver statsmodels.tsa.seasonal.STL.
+
+        periodo_loess: int
+            Ver statsmodels.tsa.seasonal.STL.
+
+        robust: bool
+            Ver statsmodels.tsa.seasonal.STL.
+
+        seasonal_deg: int
+            Ver statsmodels.tsa.seasonal.STL.
+
+        trend_deg: int
+            Ver statsmodels.tsa.seasonal.STL.
+
+        low_pass_deg: int
+            Ver statsmodels.tsa.seasonal.STL.
+
+        dir_saida: str. Default: /saída/img/
+            Nome do diretório de saída.
         """
 
         def analisePlot(vazao, loess, media, mediana, rippl, mann_kendall, recorte, grau):
@@ -413,13 +438,15 @@ class Vazao():
 
             fig, ax = plt.subplots(nrows=3, figsize = (24, 16))
 
+            # Plot da série de vazão e a regressão local do STL
             self.plot(ax[0], dado = vazao.vazao[self.usina], color = '#00AF91', linewidth = 2, alpha = 0.8)
             vazao_patch = mpatches.Patch(color='#00AF91', label="Vazão natural (m³/s)")
             self.plot(ax[0], dado = loess[self.usina], color = "#3E4B4B")
-            loess_patch = mpatches.Patch(color='#3E4B4B', label = f"Regressão local ({loess_.get('type', 'trend')})")
+            loess_patch = mpatches.Patch(color='#3E4B4B', label = f"Regressão local ({type})")
 
             ax[0].legend(fancybox=True, handles = [vazao_patch, loess_patch], loc="upper left", fontsize = 14, borderpad=0.5)
 
+            # Plot da série de média e mediana móveis
             self.plot(ax[1], dado = media[self.usina], color = '#00AF91', linewidth = 2, alpha = 0.8)
             media_patch = mpatches.Patch(color='#00AF91', label = f"Média móvel ({janela_movel} meses)")
             self.plot(ax[1], dado = mediana[self.usina], label = f"Mediana móvel ({janela_movel} meses)", color = "#3E4B4B", linewidth=1.1)
@@ -427,6 +454,7 @@ class Vazao():
 
             ax[1].legend(fancybox=True, handles = [media_patch, mediana_patch], loc="upper left", fontsize = 14, borderpad=0.5)
 
+            # Plot da série de Rippl rebatido e a aproximação polinomial de ajuste de curva
             self.plot(ax[2], dado = rippl.vazao[self.usina],  color = '#00AF91', linewidth = 2, alpha = 0.8)
             rippl_patch = mpatches.Patch(color='#00AF91', label = "Anomalia acumulada")
             ax[2].plot(rippl.regPoli(grau), color = "#3E4B4B", linestyle='--')
@@ -434,12 +462,15 @@ class Vazao():
 
             ax[2].legend(fancybox=True, handles = [rippl_patch, mmq_patch], loc="upper left",fontsize = 14)
 
+            # Títulos dos axes
             ax[0].set_title(f'Vazão natural afluente em {self.usina}\nMédia mensal{recorte}\n\n', fontsize = 18)
             ax[1].set_title(f'Média e mediana móvel para a vazão de {self.usina} mensal{recorte}\n\n', fontsize = 18)
             ax[2].set_title(f'\nDiagrama de Rippl a partir das anomalias de vazão natural afluente no reservatório de {self.usina}\nMédia mensal{recorte} em relação à média de longo termo entre {pd.to_datetime(loess["time"][0].values).year} e 2010\n\n', fontsize = 18)
 
+            # setando o segundo ax com os mesmos xticks que o terceiro
             ax[1].set_xticks(ax[2].get_xticks())
 
+            # Informações de Mann-Kendall no ax
             trend, h, p, z, Tau, s, var_s, slope, intercept = mann_kendall
             ax[0].annotate(f"Mann-Kendall ({mann_kendall_ref})\nTendência: {trend}\np: {round(p, 8)}\nZ: {round(z, 8)}\nTau: {round(Tau, 8)}\nSen: {round(slope, 8)}",
                             horizontalalignment='right', xy=(0.99, 0.75), xycoords="axes fraction", size = 16, bbox=dict(boxstyle="round", alpha=0.25, facecolor = "white", edgecolor = "grey"))
@@ -447,19 +478,27 @@ class Vazao():
             fig.tight_layout()
 
             if exportar:
-                self.exportarImagem()
+                self.exportarImagem(dir_saida = kwargs.get('dir_saida', os.path.join(self.dir_saida, "img", self.usina)))
 
             return fig, ax
 
-
+        # agrupa a vazão em médias de acordo com a frequência freq e recorta a série de acordo com o parâmetro series
         vazao_media_verao = self.agruparMedia(freq = freq).recorteTemporal(series = recorte_temporal)
 
+        # performa o teste de Mann-Kendall de acordo com o parâmetro ref, que dá o teste desejado, e o período de sazonalidade mann_kendall_sazonal, caso exista
         mk = vazao_media_verao.mannKendall(ref = mann_kendall_ref, mann_kendall_sazonal = mann_kendall_sazonal)
-        loess = vazao_media_verao.loess(**loess_)
+
+        # performa a decomposição de loess de acordo com os parâmetros (Ver hidrostats.Vazao.loess)
+        loess = vazao_media_verao.loess(type = type, seasonality = seasonality, period = periodo_loess, robust = robust, seasonal_deg = seasonal_deg, trend_deg = trend_deg, low_pass_deg = low_pass_deg)
+
+        # média e mediana móveis de acordo com a janela temporal
         media = vazao_media_verao.mediaMovel(janela = janela_movel)
         mediana = vazao_media_verao.medianaMovel(janela = janela_movel)
+
+        # diagrama de Rippl rebatido para a análise de anomalias acumuladas
         rippl = self.agruparMedia(freq = freq).massaResidual(period=[vazao_media_verao.vazao["time"][0], vazao_media_verao.vazao["time"][-1]], basis = [vazao_media_verao.vazao["time"][0], '12-31-2010']).recorteTemporal(series = recorte_temporal)
 
+        # plot fácil para o compilado de análises
         analisePlot(vazao = vazao_media_verao, loess = loess, media = media, mediana = mediana, rippl = rippl, mann_kendall = mk, recorte = recorte, grau = grau)
 
 
@@ -468,6 +507,9 @@ class Vazao():
         Exportar o arquivo de imagem.
 
         Kwargs:
+        dir_saida: str. Default: hidrostats/saída/img/
+            Nome do diretório de saída.
+
         arquivo: str. Default: xarray.DataArray.name
             Nome do arquivo a ser exportado.
 
@@ -477,9 +519,10 @@ class Vazao():
 
         diretorio = os.path.join(self.dir_saida, "img", self.usina)
 
+        # criando os diretórios de imagem
         try:
-            os.makedirs(diretorio)
+            os.makedirs(kwargs.get('dir_saida', diretorio))
         except FileExistsError:
             pass
 
-        plt.savefig(f"{os.path.join(diretorio, kwargs.get('arquivo', self.usina))}.png", transparent = kwargs.get('transparent', False))
+        plt.savefig(f"{os.path.join(kwargs.get('dir_saida', diretorio), kwargs.get('arquivo', self.usina))}.png", transparent = kwargs.get('transparent', False))

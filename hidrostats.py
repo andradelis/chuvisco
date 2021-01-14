@@ -11,6 +11,8 @@ import matplotlib.patches as mpatches
 import statsmodels.api as sm
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
+from dtw import *
+
 
 
 def csv2ds(caminho, **kwargs):
@@ -41,8 +43,8 @@ class Vazao():
         Classe de análise de vazões.
 
         Parâmetros:
-        caminho_ou_dataset: str, xarray.Dataset ou xarray.DataArray.
-            Diretório do arquivo .csv ou um objeto xarray.Dataset. Caso seja passado um objeto da classe xarray.DataArray, o objeto será transformado em dataset.
+        caminho_ou_dataset: str, pandas.DataFrame, xarray.Dataset ou xarray.DataArray.
+            Diretório do arquivo .csv ou um objeto xarray.Dataset. Caso seja passado um objeto da classe xarray.DataArray ou pandas.DataFrame, o objeto será transformado em dataset.
 
         Kwargs:
         format: str
@@ -50,16 +52,18 @@ class Vazao():
         """
 
         if isinstance(caminho_ou_dataset, str):
-            vazao = self.csv2ds(caminho = caminho_ou_dataset, **kwargs)
+            vazao = csv2ds(caminho = caminho_ou_dataset, **kwargs)
         elif isinstance(caminho_ou_dataset, xr.Dataset):
             vazao = caminho_ou_dataset
         elif isinstance(caminho_ou_dataset, xr.DataArray):
             vazao = caminho_ou_dataset.to_dataset()
+        elif isinstance(caminho_ou_dataset, pd.DataFrame):
+            vazao = xr.Dataset.from_dataframe(caminho_ou_dataset)
 
         self.vazao = vazao
         self.usina = str(vazao.to_array().isel(variable=0)['variable'].values)
-
         self.dir_saida = os.path.join(os.getcwd(), "saída")
+
 
     def agruparMedia(self, freq="MS"):
         """
@@ -75,13 +79,16 @@ class Vazao():
         return Vazao(vazao.resample(time = freq).mean())
 
 
-    def indiceCategorico(self, array):
+    def indiceCategorico(self, array, step = relativedelta(months=1)):
         """
         Converte o vetor temporal para categórico.
 
         Parâmetros:
         array: xr.DataArray
             Vetor temporal.
+
+        step: dateutil.relativedelta
+            Diferença esperada entre as datas.
         """
 
         def diasConsecutivos(a, b, step = relativedelta(months=1)):
@@ -103,7 +110,7 @@ class Vazao():
 
 
         # se a função diasConsecutivos ao longo de todo o vetor for verdadeira, o algoritmo retorna o vetor de tempo inalterado. Senão, transforma o objeto de data em string.
-        if all(diasConsecutivos(pd.to_datetime(array[i].values), pd.to_datetime(array[i+1].values)) for i in range(len(array) - 1)):
+        if all(diasConsecutivos(pd.to_datetime(array[i].values), pd.to_datetime(array[i+1].values, step)) for i in range(len(array) - 1)):
             pass
         else:
             array["time"] = array["time"].dt.strftime("%m-%Y")
@@ -131,7 +138,7 @@ class Vazao():
 
     def massaResidual(self, **kwargs):
         """
-        Retorna o diagrama de massa residual (diagrama de Rippl) segundo a equação:
+        Retorna o diagrama de massa residual (diagrama de Rippl rebatido) segundo a equação:
 
         $$\sum^j_{i=n} \frac{Q_{i} - Q_{LTM}}{Q_{LTM}}$$
 
@@ -207,7 +214,7 @@ class Vazao():
         return polinomio
 
 
-    def mannKendall(self, ref = "hamed rao", **kwargs):
+    def mannKendall(self, ref = "hamed rao", retorna_df = False, **kwargs):
         """
         Retorna o teste de Mann-Kendall para a distribuição dos eventos na série histórica.
 
@@ -215,10 +222,14 @@ class Vazao():
         ref: str. Default: "hamed rao"
             Referência para o teste de Mann-Kendall. ['hamed rao', 'yue wang', 'trend-free prewhitening', 'prewhitening', 'seasonal']
 
+        retorna_df: bool. Default: False
+            Caso verdadeiro, retorna um pd.DataFrame com os atributos do teste de Mann-Kendall.
+
         Kwargs:
         mann_kendall_sazonal: int. Default: 12
             Período para o teste sazonal de Mann-Kendall.
         """
+
         vazao = self.vazao
 
         y = vazao[self.usina]
@@ -238,7 +249,23 @@ class Vazao():
         elif ref == 'seasonal':
             resultado = mk.seasonal_test(y, period=kwargs.get('mann_kendall_sazonal', 12))
 
+        if retorna_df == True:
+            trend, h, p, z, Tau, s, var_s, slope, intercept = resultado
+            mannKendall_dict = {self.usina: {"Tendência": trend,
+                                        "Valor p": p,
+                                        "Tau": Tau,
+                                        "Z": z,
+                                        "Sen": slope,
+                                        "H": h,
+                                        "Var(S)": var_s,
+                                        "Intercept": intercept,
+                                        "S": s}}
+
+            return pd.DataFrame.from_dict(mannKendall_dict)
+
+
         return resultado
+
 
     def loess(self, **kwargs):
         """
@@ -306,7 +333,6 @@ class Vazao():
         alpha: float. Default: 1
             Transparência da linha do gráfico.
         """
-
 
         right = ax.spines["right"]
         right.set_visible(False)
@@ -416,7 +442,7 @@ class Vazao():
             ax[1].set_xticks(ax[2].get_xticks())
 
             trend, h, p, z, Tau, s, var_s, slope, intercept = mann_kendall
-            ax[0].annotate(f"Mann-Kendall ({mann_kendall_ref})\nTendência: {trend}\np: {round(p, 8)}\nZ: {round(z, 8)}\nTau: {round(Tau, 8)}\nScore: {s}\nSen: {round(slope, 8)}\nVariância S: {(var_s)}",
+            ax[0].annotate(f"Mann-Kendall ({mann_kendall_ref})\nTendência: {trend}\np: {round(p, 8)}\nZ: {round(z, 8)}\nTau: {round(Tau, 8)}\nSen: {round(slope, 8)}",
                             horizontalalignment='right', xy=(0.99, 0.75), xycoords="axes fraction", size = 16, bbox=dict(boxstyle="round", alpha=0.25, facecolor = "white", edgecolor = "grey"))
 
             fig.tight_layout()
@@ -437,6 +463,7 @@ class Vazao():
 
         analisePlot(vazao = vazao_media_verao, loess = loess, media = media, mediana = mediana, rippl = rippl, mann_kendall = mk, recorte = recorte, grau = grau)
 
+
     def exportarImagem(self, **kwargs):
         """
         Exportar o arquivo de imagem.
@@ -448,15 +475,11 @@ class Vazao():
         transparent: bool. Default: False
             Transparência da imagem.
         """
-        try:
-            os.mkdir(self.dir_saida)
-        except FileExistsError:
-            pass
 
-        diretorio = os.path.join(self.dir_saida, self.usina)
+        diretorio = os.path.join(self.dir_saida, "img", self.usina)
 
         try:
-            os.mkdir(diretorio)
+            os.makedirs(diretorio)
         except FileExistsError:
             pass
 

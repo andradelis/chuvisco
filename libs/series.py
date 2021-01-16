@@ -70,10 +70,7 @@ def mlt(serie):
         Média de longo termo.
     """
     
-    # obtendo a média de longo termo
-    media_longo_termo = serie.groupby(by = serie.index.month).mean()
-    
-    return media_longo_termo
+    return serie.groupby(by = serie.index.month).mean()
 
 
 def recorteAno(serie, meses):
@@ -105,3 +102,44 @@ def recorteAno(serie, meses):
 
     return df_recortado
 
+
+def agruparMedia(serie, freq="MS"):
+    """
+    Retorna a série temporal após passado o resample de acordo com a frequência escolhida. 
+    
+    Args:
+    df: pd.Series
+        Série temporal.
+        
+    Kwargs:
+    freq: str. Default: "MS"
+        Frequência de agrupamento.
+    """
+
+    return serie.resample(time = freq).mean()
+
+
+def regressao(serie, grau_polinomio):
+    """
+    Retorna um array contendo os valores para a curva de ajuste para a tendência da série segundo o método dos mínimos quadrados.
+
+    Args:
+    serie: pd.Series.
+        Série temporal.
+        
+    grau_polinomio: int
+        Grau do polinômio de ajuste.
+    """
+
+    # Obter o vetor de vazão natural
+    y = serie
+    # Obter n valores entre 0 e 1, onde n é igual ao comprimento do vetor contendo os valores de vazão natural
+    x = np.linspace(0, 1, len(serie))
+
+    # Obter os coeficientes para o ajuste de um polinômio p(x) = p_0*x^n + p_1*x^(n-1) + ... + p_n, onde n é o grau do polinômio.
+    coefs = np.polyfit(x, y, grau_polinomio)
+    # Os coeficientes obtidos são parâmetros para a instância da classe de operações polinomiais do numpy
+    f = np.poly1d(coefs)
+    polinomio = f(x)
+
+    return polinomio

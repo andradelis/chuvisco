@@ -52,8 +52,8 @@ def anomalia(serie,
 
     serie['anomalia'] = (serie.iloc[:, 0] - serie['mlt'])
     
-    serie['datas'] = datas
-
+    serie.index = datas
+    
     return serie
 
 

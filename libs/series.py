@@ -76,7 +76,6 @@ def mlt(serie):
 def recorteAno(serie, meses):
     """
     Retorna a série temporal recortada no mesmo período do ano, para todos os anos. 
-    Uma série temporal não linear assume valores categóricos para o vetor de data.
 
     Args:
     serie: pd.Series.

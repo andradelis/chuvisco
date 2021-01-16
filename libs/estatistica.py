@@ -6,21 +6,20 @@ import pymannkendall as mk
 from scipy.cluster import hierarchy
 from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import cdist 
-from libs import series
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 from statsmodels.tsa.seasonal import STL
 
 
-def massaresidual(serie, 
+def massaresidual(df, 
                   periodo =  ['1979-01-01', '2021-12-01'], 
                   base = ['1979-01-01', '2010-01-01']):
     """
     Retorna a massa residual do dataframe.
     
     Args:
-    serie: pd.Series.
+    df: pd.DataFrame.
         Dados.
         
     Kwargs:
@@ -30,18 +29,41 @@ def massaresidual(serie,
     base: list. Default: ['1979-01-01', '2010-01-01']
         Intervalo base.
     """
+
+    # obtendo o período de análise total
+    # o fim do período precisa ter data menor ou igual à data limite fornecida
+    fim = df[df.index<=periodo[1]]
+    # o início do período precisa ter a data maior do que a data de início fornecida
+    periodo = fim[fim.index>periodo[0]]
+
+    # mesmo procedimento para o período de base
+    fim_base = df[df.index<=base[1]]
+    periodo_base = fim_base[fim_base.index>base[0]]
+
+    # obtendo a média de longo termo
+    media_longo_termo = periodo_base.groupby(by = periodo_base.index.month).mean()
     
-    anom = series.anomalia(serie)
+    # armazenando o valor de data original
+    datas = periodo.index
+    
+    # transformando o índice de data pra mês para poder comparar os índices da série com a média de longo termo
+    periodo.index = periodo.index.month
+    
+    # criando um dataframe da série no período solicitado
+    serie = pd.DataFrame(periodo)
+    
+    # criando uma coluna só com os valores de anomalia
+    serie['anomalia'] = media_longo_termo
     
     # calculando a série de massa residual
-    rippl_rebatido = anom['anomalia']/anom['mlt']
+    rippl_rebatido = (serie.iloc[:, 0] - serie['anomalia'])/serie['anomalia']
+    rippl_rebatido.index = datas
     
     # soma cumulativa da série de massa residual
     massa_residual = np.cumsum(rippl_rebatido)
     
-    massa_residual.index = anom['datas']
-    
-    return massa_residual.to_frame(name = f"residual_{serie.name}")
+    return massa_residual
+
 
 
 def mediaMovel(df, janela):

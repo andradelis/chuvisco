@@ -1,4 +1,5 @@
 import xarray as xr
+import pandas as pd
 
 def fit(caminho):
     """
@@ -162,3 +163,31 @@ class Grade:
 
         return dataset
 
+
+    def sazonalidade(self):
+        """
+        Retorna a sazonalidade anual.
+        """
+        # dá pra melhorar isso aqui depois
+        data_list = []
+        time_list = []
+        
+        for i in range(0, len(self.dataset.time.values), 12):
+            d_slice = self.dataset.isel(time=slice(i, i + 12))
+            d_season = d_slice.groupby('time.season').mean()
+            data_list.append(d_season)
+            time_list.append(pd.to_datetime(self.dataset.time.values[i]).year)
+
+        idx = pd.Index(time_list, name='time')
+        ds = xr.concat(data_list, dim=idx)
+        
+        return ds
+    
+    
+    def aave(self):
+        """
+        Retorna a média regional.
+        """
+        dataset = self.dataset.mean(dim=('lat', 'lon'))
+
+        return dataset

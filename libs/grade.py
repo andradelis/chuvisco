@@ -43,6 +43,8 @@ class Grade:
     
     def __init__(self, dataset):
         self.dataset = dataset
+        # assumindo um dataset de 1 variável por vez :T depois vou melhorar isso
+        self.variavel = [variaveis for variaveis in [*dataset] if 'bnds' not in variaveis][0]
 
 
     def atribuir(self, attrs_dict):

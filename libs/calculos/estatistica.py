@@ -70,11 +70,16 @@ def medianaMovel(df, janela):
     saida = df.rolling(janela).median()
 
     return saida
-    
 
-def loess(df,
-          tipo,
-          **loess_kw):
+
+def loess(df, 
+          tipo,             
+          seasonal=7,
+          period=6,
+          robust=False,
+          seasonal_deg=1,
+          trend_deg=1,
+          low_pass_deg=1):
     """
     Regressão local LOESS.
 
@@ -90,8 +95,13 @@ def loess(df,
     """
 
     # decomposição de loess
-    stl = STL(df,
-              **loess_kw)
+    stl = STL(df, 
+            seasonal=seasonal,
+            period=period,
+            robust=robust,
+            seasonal_deg=seasonal_deg,
+            trend_deg=trend_deg,
+            low_pass_deg=low_pass_deg)
     
     res = stl.fit()
 
@@ -108,8 +118,7 @@ def loess(df,
     return res
     
 
-def standard(df, 
-             **scaler_kw):
+def standard(df, **scaler_kw):
     """
     Normaliza um dataframe.
     
@@ -123,9 +132,10 @@ def standard(df,
     pd.Dataframe: Dataframe normalizado.
     """
     
-    df_final = StandardScaler(**scaler_kw).fit_transform(df)
+    array_normalizado = StandardScaler(**scaler_kw).fit_transform(df)
+    df_normalizado = pd.DataFrame(array_normalizado, columns = df.columns, index = df.index)
 
-    return df_final
+    return df_normalizado
 
 
 def curvatura(K, 
@@ -200,7 +210,7 @@ def mannkendall(df,
     Retorna o teste de Mann-Kendall para a distribuição dos eventos na série histórica.
 
     Args:
-    df: pd.DataFrame 1D.
+    df: pd.Series.
         Série.
 
     Kwargs:
@@ -348,8 +358,7 @@ def dendrograma(matriz,
     return fig, ax
 
 
-def pca(df, 
-        **pca_kw):
+def pca(df, **pca_kw):
     """
     Retorna as componentes principais de um dataframe. Caso um número de componentes n_components não seja passado, utiliza o número de colunas do dataframe.
     

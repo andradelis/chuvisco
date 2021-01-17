@@ -1,4 +1,71 @@
 import pandas as pd
+import numpy as np
+from dateutil.relativedelta import relativedelta
+
+
+def indiceCategorico(array, step = relativedelta(months = 1)):
+    """
+    Converte o vetor temporal em categórico.
+
+    Args:
+    array: pd.Series ou pd.DataFrame.
+        Série temporal ou dataframe de séries temporais.
+        
+    Kwargs:
+    step: dateutil.relativedelta
+        Diferença esperada entre as datas.
+    """
+
+    def diasConsecutivos(a, b, step):
+        """
+        Checa se duas datas estão separadas por um período de tempo.
+
+        Args:
+        a: datetime64[ns]
+            Primeira data.
+
+        b: datetime64[ns]
+            Segunda data.
+        
+        step: dateutil.relativedelta
+            Diferença esperada entre as datas.
+        """
+        return (a + step) == b
+    
+
+    if all(diasConsecutivos(array.index[i], array.index[i+1], step = step) for i in range(len(array) - 1)):
+        pass
+    else:
+        array.index = array.index.strftime("%m-%Y")
+
+        return array
+
+
+def regressao(serie, grau_polinomio):
+    """
+    Retorna um array contendo os valores para a curva de ajuste para a tendência da série segundo o método dos mínimos quadrados.
+
+    Args:
+    serie: pd.Series.
+        Série temporal.
+        
+    grau_polinomio: int
+        Grau do polinômio de ajuste.
+    """
+
+    # Obter o vetor de vazão natural
+    y = serie
+    # Obter n valores entre 0 e 1, onde n é igual ao comprimento do vetor contendo os valores de vazão natural
+    x = np.linspace(0, 1, len(serie))
+
+    # Obter os coeficientes para o ajuste de um polinômio p(x) = p_0*x^n + p_1*x^(n-1) + ... + p_n, onde n é o grau do polinômio.
+    coefs = np.polyfit(x, y, grau_polinomio)
+    # Os coeficientes obtidos são parâmetros para a instância da classe de operações polinomiais do numpy
+    f = np.poly1d(coefs)
+    polinomio = f(x)
+
+    return polinomio
+
 
 def anomalia(serie,
              periodo = ['1979-01-01',
@@ -62,7 +129,7 @@ def mlt(serie):
     Retorna a média de longo termo da série.
     
     Args:
-    df: pd.Series.
+    df: pd.Series ou pd.DataFrame.
         Série temporal.
         
     Retorna:
@@ -78,8 +145,8 @@ def recorteAno(serie, meses):
     Retorna a série temporal recortada no mesmo período do ano, para todos os anos. 
 
     Args:
-    serie: pd.Series.
-        Série temporal.
+    serie: pd.Series ou pd.DataFrame.
+        Série temporal ou dataframe de séries temporais.
     
     meses: list.
         Lista de meses expressos em números inteiros. 
@@ -102,43 +169,38 @@ def recorteAno(serie, meses):
     return df_recortado
 
 
+def recorteIntervalo(df, periodos):
+    """
+    Recorta o intervalo da série.
+
+    Args:
+    df: pd.Series ou pd.DataFrame
+        Série temporal ou dataframe de séries temporais.
+        
+    periodos: list.
+        Lista de strings para um recorte de intervalo.
+    """
+
+    if isinstance(periodos, list):
+        fim = df[df.index<=periodos[1]]
+        df_recortado = fim[fim.index>=periodos[0]]
+        
+    return df_recortado
+
+
 def agruparMedia(serie, freq="MS"):
     """
     Retorna a série temporal após passado o resample de acordo com a frequência escolhida. 
     
     Args:
-    df: pd.Series
-        Série temporal.
+    df: pd.Series ou pd.DataFrame.
+        Série temporal ou dataframe de séries temporais.
         
     Kwargs:
     freq: str. Default: "MS"
         Frequência de agrupamento.
     """
 
-    return serie.resample(time = freq).mean()
+    return serie.resample(freq).mean()
 
 
-def regressao(serie, grau_polinomio):
-    """
-    Retorna um array contendo os valores para a curva de ajuste para a tendência da série segundo o método dos mínimos quadrados.
-
-    Args:
-    serie: pd.Series.
-        Série temporal.
-        
-    grau_polinomio: int
-        Grau do polinômio de ajuste.
-    """
-
-    # Obter o vetor de vazão natural
-    y = serie
-    # Obter n valores entre 0 e 1, onde n é igual ao comprimento do vetor contendo os valores de vazão natural
-    x = np.linspace(0, 1, len(serie))
-
-    # Obter os coeficientes para o ajuste de um polinômio p(x) = p_0*x^n + p_1*x^(n-1) + ... + p_n, onde n é o grau do polinômio.
-    coefs = np.polyfit(x, y, grau_polinomio)
-    # Os coeficientes obtidos são parâmetros para a instância da classe de operações polinomiais do numpy
-    f = np.poly1d(coefs)
-    polinomio = f(x)
-
-    return polinomio

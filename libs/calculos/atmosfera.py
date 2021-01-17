@@ -44,7 +44,6 @@ class Atmosfera(grade.Grade):
         grade: libs.grade.Grade
             Objeto libs.grade.Grade contendo um dataset com valores de vento na direção u ou v, complementar ao objeto Atmosfera.
         """
-
         dataset = self.dataset
         var = self.variavel
 

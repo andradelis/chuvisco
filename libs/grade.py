@@ -1,5 +1,42 @@
 import xarray as xr
+import rioxarray as rio
+import geopandas as gpd
+import geojson
+import re
+from libs import series
 import pandas as pd
+from shapely.geometry import mapping
+
+
+def recorteGrade(shapefile, 
+                 netcdf):
+    """
+    Recebe um objeto xarray.DataArray para ser recortado de acordo com o contorno do shapefile.
+    
+    Args:
+    shapefile: str.
+        Caminho para o arquivo shp.
+        
+    netcdf: xarray.DataArray.
+        Dado em grade.
+    
+    Kwargs:
+    recorte_temporal: bool, list. Default: False
+        Recorte intra anual da série. 
+        Caso recorte_temporal = False, não realiza nenhum recorte.
+        Caso deseje que a série seja recortada, recebe uma lista de inteiros com os meses desejados.
+            
+    Retorna:
+    xarray.Dataset recortado dentro do contorno do shapefile.
+    """
+    
+    netcdf.rio.set_spatial_dims(x_dim="lon", y_dim="lat", inplace=True)
+    netcdf.rio.write_crs("epsg:4326", inplace=True)
+    
+    recorte = netcdf.rio.clip(shapefile.geometry.apply(mapping), shapefile.crs, drop=True)  
+
+    return recorte
+
 
 def fit(caminho):
     """
@@ -144,7 +181,7 @@ class Grade:
             recorte_total = xr.concat(meses_selecionados, dim='time')
             dataset = recorte_total.sortby(recorte_total.time).dropna(dim='time')
             
-        return dataset
+        return Grade(dataset)
 
 
     def recorteIntervalo(self, periodos):

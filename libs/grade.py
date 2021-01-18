@@ -20,12 +20,6 @@ def recorteGrade(shapefile,
     netcdf: xarray.DataArray.
         Dado em grade.
     
-    Kwargs:
-    recorte_temporal: bool, list. Default: False
-        Recorte intra anual da série. 
-        Caso recorte_temporal = False, não realiza nenhum recorte.
-        Caso deseje que a série seja recortada, recebe uma lista de inteiros com os meses desejados.
-            
     Retorna:
     xarray.Dataset recortado dentro do contorno do shapefile.
     """

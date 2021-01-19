@@ -244,7 +244,7 @@ def mannkendall(df,
 
     if retorna_df == True:
         trend, h, p, z, Tau, s, var_s, slope, intercept = resultado
-        mannKendall_dict = {df.columns[0]: {"Tendência": trend,
+        mannKendall_dict = {df.name: {"Tendência": trend,
                                             "Valor p": p,
                                             "Tau": Tau,
                                             "Z": z,

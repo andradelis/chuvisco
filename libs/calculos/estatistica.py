@@ -336,14 +336,14 @@ def dendrograma(matriz,
     matplotlib.pyplot.figure, matplotlib.pyplot.axes
     """    
     # criando a imagem
-    fig, ax = plt.subplots(figsize=(13,5))
+    fig, ax = plt.subplots(figsize=(13,8))
     
     # plotando o dendrograma
-    dendrogram(matriz,
+    dendro = dendrogram(matriz,
                 orientation = dendro_kw.get('orientation', 'top'),
                 distance_sort = dendro_kw.get('distance_sort', 'descending'),
                 ax = ax, 
-                above_threshold_color = "#3E4B4B", 
+                above_threshold_color = "beige", 
                 **dendro_kw)
 
     # configurações do ax
@@ -355,7 +355,32 @@ def dendrograma(matriz,
     top.set_visible(False)
     bottom.set_visible(False)
 
-    return fig, ax
+    return fig, ax, dendro
+
+
+def cluster_por_cor(dendro):
+    """
+    Retorna as labels do dendrograma por cor.
+    
+    Args:
+    dendro: scipy.cluster.hierarchy.dendrogram dict
+        Dendrograma.
+        
+    Retorna:
+    dicionário contendo {cor: [labels]}
+    """
+    points = dendro['leaves']
+    colors = ['none'] * len(points)
+    for xs, c in zip(dendro['icoord'], dendro['color_list']):
+        for xi in xs:
+            if xi % 10 == 5:
+                colors[(int(xi)-5) // 10] = c
+    
+    cores = pd.DataFrame(data=colors, index=dendro['ivl'], columns = ["cor"]).reset_index()
+    
+    cluster_por_cor = cores.groupby('cor')['index'].apply(list).to_dict()
+    
+    return cluster_por_cor
 
 
 def pca(df, **pca_kw):

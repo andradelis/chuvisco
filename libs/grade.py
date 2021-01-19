@@ -7,6 +7,20 @@ from libs import series
 import pandas as pd
 from shapely.geometry import mapping
 
+def preparar_para_recorte(dataset, crs="epsg:4326", xdim="lon", ydim="lat"):
+    """
+    Prepara o dataset para o recorte.
+    
+    Args:
+    dataset: xarray.DataArray
+        Dataset pra ser recortado.
+    """
+
+    dataset = dataset.rio.set_spatial_dims(x_dim=xdim, y_dim=ydim) 
+    dataset = dataset.rio.write_crs(crs)
+    
+    return dataset
+
 
 def recorteGrade(shapefile, 
                  netcdf):
@@ -23,13 +37,11 @@ def recorteGrade(shapefile,
     Retorna:
     xarray.Dataset recortado dentro do contorno do shapefile.
     """
-    
-    netcdf.rio.set_spatial_dims(x_dim="lon", y_dim="lat", inplace=True)
-    netcdf.rio.write_crs("epsg:4326", inplace=True)
-    
-    recorte = netcdf.rio.clip(shapefile.geometry.apply(mapping), shapefile.crs, drop=True)  
 
-    return recorte
+    dados_preparados = preparar_para_recorte(netcdf)
+    dados_recortados = dados_preparados.rio.clip(shapefile["geometry"], crs=dados_preparados.rio.crs)
+
+    return dados_recortados
 
 
 def fit(caminho):
